@@ -18,12 +18,17 @@ from .runner import ChainResult, query_all
 
 
 def _format_eth(wei: int) -> str:
-    eth = wei / 10**18
+    # use Decimal — float division of large wei values silently drops precision
+    # past ~15 sig figs, which made dust balances and exact 1.000000000000000001
+    # ETH inputs both render as "1".
+    from decimal import Decimal
+    eth = Decimal(wei) / Decimal(10**18)
     if eth == 0:
         return "0"
-    if eth < 0.0001:
-        return f"{eth:.8f}".rstrip("0")
-    return f"{eth:.6f}".rstrip("0").rstrip(".")
+    s = format(eth, "f")
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s
 
 
 def _render_table(address: str, results: list[ChainResult], console: Console) -> None:
