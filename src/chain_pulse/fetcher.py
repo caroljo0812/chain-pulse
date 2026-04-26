@@ -13,8 +13,20 @@ from web3 import HTTPProvider, Web3
 from web3.exceptions import Web3Exception
 
 from .chains import Chain
+from .tokens import Token
 
 WEI_PER_ETH = Decimal(10**18)
+
+# Minimal ERC-20 ABI — we only need balanceOf for now.
+ERC20_ABI = [
+    {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "type": "function",
+    }
+]
 
 
 class FetchError(RuntimeError):
@@ -31,6 +43,18 @@ class Balance:
     @property
     def eth(self) -> Decimal:
         return Decimal(self.wei) / WEI_PER_ETH
+
+
+@dataclass(frozen=True)
+class TokenBalance:
+    chain: str
+    address: str
+    token: Token
+    raw: int
+
+    @property
+    def amount(self) -> Decimal:
+        return Decimal(self.raw) / Decimal(10**self.token.decimals)
 
 
 class Fetcher:
@@ -53,6 +77,18 @@ class Fetcher:
             wei=int(wei),
             symbol=self.chain.native_symbol,
         )
+
+    def token_balance(self, address: str, token: Token) -> TokenBalance:
+        try:
+            c = self._w3.eth.contract(address=token.address, abi=ERC20_ABI)
+            raw = c.functions.balanceOf(address).call()
+        except Web3Exception as e:
+            raise FetchError(f"{self.chain.key}/{token.symbol}: {e}") from e
+        except Exception as e:
+            raise FetchError(
+                f"{self.chain.key}/{token.symbol}: {type(e).__name__}: {e}"
+            ) from e
+        return TokenBalance(chain=self.chain.key, address=address, token=token, raw=int(raw))
 
     def block_number(self) -> int:
         try:
