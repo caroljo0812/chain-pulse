@@ -35,16 +35,26 @@ def _render_table(address: str, results: list[ChainResult], console: Console) ->
     t = Table(title=f"chain-pulse · {address}", show_lines=False)
     t.add_column("chain", style="cyan", no_wrap=True)
     t.add_column("balance", justify="right")
+    t.add_column("tokens", justify="right")
     t.add_column("explorer", style="dim")
     for r in results:
         if r.ok and r.balance is not None:
+            tokens_cell = (
+                ", ".join(
+                    f"{format(tb.amount.normalize(), 'f').rstrip('0').rstrip('.') or '0'} {tb.token.symbol}"
+                    for tb in r.tokens
+                )
+                if r.tokens
+                else "—"
+            )
             t.add_row(
                 r.chain.name,
                 f"{_format_eth(r.balance.wei)} {r.balance.symbol}",
+                tokens_cell,
                 f"{r.chain.explorer}/address/{address}",
             )
         else:
-            t.add_row(r.chain.name, "[red]error[/red]", r.error or "")
+            t.add_row(r.chain.name, "[red]error[/red]", "—", r.error or "")
     console.print(t)
 
 
@@ -58,6 +68,16 @@ def _render_json(address: str, results: list[ChainResult]) -> None:
                 "ok": r.ok,
                 "balance_wei": r.balance.wei if r.balance else None,
                 "symbol": r.balance.symbol if r.balance else None,
+                "tokens": [
+                    {
+                        "symbol": tb.token.symbol,
+                        "address": tb.token.address,
+                        "raw": tb.raw,
+                        "decimals": tb.token.decimals,
+                    }
+                    for tb in r.tokens
+                ],
+                "token_errors": list(r.token_errors),
                 "error": r.error,
             }
             for r in results
@@ -83,10 +103,12 @@ def _read_addresses(path: Path) -> list[str]:
 @click.option("--chains", "chains_csv", default=None,
               help=f"Comma-separated chain keys. Default: all ({', '.join(CHAINS)}).")
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON instead of a table.")
+@click.option("--tokens/--no-tokens", default=False, show_default=True,
+              help="Also fetch ERC-20 balances for the curated token list.")
 @click.option("--timeout", default=10, show_default=True, help="Per-RPC timeout in seconds.")
 @click.version_option(__version__, prog_name="chain-pulse")
 def main(address: str | None, file_: Path | None, chains_csv: str | None,
-         as_json: bool, timeout: int) -> None:
+         as_json: bool, tokens: bool, timeout: int) -> None:
     """Inspect EVM wallet balances across multiple chains."""
     load_dotenv()
     console = Console()
@@ -112,7 +134,7 @@ def main(address: str | None, file_: Path | None, chains_csv: str | None,
         sys.exit(2)
 
     for a in addrs:
-        results = query_all(a, chains, timeout=timeout)
+        results = query_all(a, chains, timeout=timeout, include_tokens=tokens)
         if as_json:
             _render_json(a, results)
         else:
