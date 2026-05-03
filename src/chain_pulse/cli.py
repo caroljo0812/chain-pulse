@@ -78,6 +78,7 @@ def _render_json(address: str, results: list[ChainResult]) -> None:
                     for tb in r.tokens
                 ],
                 "token_errors": list(r.token_errors),
+                "gas_gwei": str(r.gas_gwei) if r.gas_gwei is not None else None,
                 "error": r.error,
             }
             for r in results
@@ -105,10 +106,12 @@ def _read_addresses(path: Path) -> list[str]:
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON instead of a table.")
 @click.option("--tokens/--no-tokens", default=False, show_default=True,
               help="Also fetch ERC-20 balances for the curated token list.")
+@click.option("--gas/--no-gas", default=False, show_default=True,
+              help="Also fetch current gas price per chain (gwei).")
 @click.option("--timeout", default=10, show_default=True, help="Per-RPC timeout in seconds.")
 @click.version_option(__version__, prog_name="chain-pulse")
 def main(address: str | None, file_: Path | None, chains_csv: str | None,
-         as_json: bool, tokens: bool, timeout: int) -> None:
+         as_json: bool, tokens: bool, gas: bool, timeout: int) -> None:
     """Inspect EVM wallet balances across multiple chains."""
     load_dotenv()
     console = Console()
@@ -134,7 +137,9 @@ def main(address: str | None, file_: Path | None, chains_csv: str | None,
         sys.exit(2)
 
     for a in addrs:
-        results = query_all(a, chains, timeout=timeout, include_tokens=tokens)
+        results = query_all(
+            a, chains, timeout=timeout, include_tokens=tokens, include_gas=gas,
+        )
         if as_json:
             _render_json(a, results)
         else:

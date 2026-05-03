@@ -90,6 +90,16 @@ class Fetcher:
             ) from e
         return TokenBalance(chain=self.chain.key, address=address, token=token, raw=int(raw))
 
+    def gas_price_gwei(self) -> Decimal:
+        """Current gas price in gwei (eth_gasPrice)."""
+        try:
+            wei = self._w3.eth.gas_price
+        except Web3Exception as e:
+            raise FetchError(f"{self.chain.key}/gas: {e}") from e
+        except Exception as e:
+            raise FetchError(f"{self.chain.key}/gas: {type(e).__name__}: {e}") from e
+        return Decimal(int(wei)) / Decimal(10**9)
+
     def block_number(self) -> int:
         try:
             return int(self._w3.eth.block_number)

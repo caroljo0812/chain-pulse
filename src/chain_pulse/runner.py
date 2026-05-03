@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from .chains import Chain
 from .fetcher import Balance, FetchError, Fetcher, TokenBalance
@@ -17,6 +18,7 @@ class ChainResult:
     error: str | None
     tokens: list[TokenBalance] = field(default_factory=list)
     token_errors: list[str] = field(default_factory=list)
+    gas_gwei: Decimal | None = None
 
     @property
     def ok(self) -> bool:
@@ -29,6 +31,7 @@ def query_all(
     *,
     timeout: int = 10,
     include_tokens: bool = False,
+    include_gas: bool = False,
 ) -> list[ChainResult]:
     """Hit every chain in parallel and return results in the same order as `chains`."""
 
@@ -52,8 +55,16 @@ def query_all(
                 except Exception as e:
                     tok_errs.append(f"{type(e).__name__}: {e}")
 
+        gas: Decimal | None = None
+        if include_gas:
+            try:
+                gas = f.gas_price_gwei()
+            except FetchError:
+                gas = None  # gas read is best-effort, never fails the row
+
         return ChainResult(
-            chain=chain, balance=bal, error=None, tokens=toks, token_errors=tok_errs
+            chain=chain, balance=bal, error=None,
+            tokens=toks, token_errors=tok_errs, gas_gwei=gas,
         )
 
     if not chains:
