@@ -108,10 +108,13 @@ def _read_addresses(path: Path) -> list[str]:
               help="Also fetch ERC-20 balances for the curated token list.")
 @click.option("--gas/--no-gas", default=False, show_default=True,
               help="Also fetch current gas price per chain (gwei).")
+@click.option("--watch", "watch_secs", type=int, default=None,
+              help="Re-poll every N seconds. Ctrl-C to stop.")
 @click.option("--timeout", default=10, show_default=True, help="Per-RPC timeout in seconds.")
 @click.version_option(__version__, prog_name="chain-pulse")
 def main(address: str | None, file_: Path | None, chains_csv: str | None,
-         as_json: bool, tokens: bool, gas: bool, timeout: int) -> None:
+         as_json: bool, tokens: bool, gas: bool, watch_secs: int | None,
+         timeout: int) -> None:
     """Inspect EVM wallet balances across multiple chains."""
     load_dotenv()
     console = Console()
@@ -136,14 +139,36 @@ def main(address: str | None, file_: Path | None, chains_csv: str | None,
         click.echo(f"error: {e}", err=True)
         sys.exit(2)
 
-    for a in addrs:
-        results = query_all(
-            a, chains, timeout=timeout, include_tokens=tokens, include_gas=gas,
-        )
-        if as_json:
-            _render_json(a, results)
-        else:
-            _render_table(a, results, console)
+    def _run_once() -> None:
+        for a in addrs:
+            results = query_all(
+                a, chains, timeout=timeout, include_tokens=tokens, include_gas=gas,
+            )
+            if as_json:
+                _render_json(a, results)
+            else:
+                _render_table(a, results, console)
+
+    if watch_secs is None:
+        _run_once()
+        return
+
+    if watch_secs < 1:
+        click.echo("error: --watch must be >= 1 second", err=True)
+        sys.exit(2)
+    if as_json:
+        click.echo("error: --watch and --json are not compatible", err=True)
+        sys.exit(2)
+
+    import time
+    try:
+        while True:
+            console.clear()
+            console.rule(f"[dim]chain-pulse · {time.strftime('%H:%M:%S')} · ^C to stop[/dim]")
+            _run_once()
+            time.sleep(watch_secs)
+    except KeyboardInterrupt:
+        console.print("[dim]stopped[/dim]")
 
 
 if __name__ == "__main__":
