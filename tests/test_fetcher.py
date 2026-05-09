@@ -1,10 +1,11 @@
+import dataclasses
 from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
 
 from chain_pulse.chains import CHAINS
-from chain_pulse.fetcher import Balance, FetchError, Fetcher
+from chain_pulse.fetcher import Balance, Fetcher, FetchError
 
 
 def _make(monkeypatch, *, balance_return=None, balance_raise=None):
@@ -48,5 +49,5 @@ def test_balance_network_error_wraps(monkeypatch):
 
 def test_balance_dataclass_is_frozen():
     b = Balance(chain="base", address="0x" + "a" * 40, wei=1, symbol="ETH")
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         b.wei = 2  # type: ignore[misc]

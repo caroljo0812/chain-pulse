@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from chain_pulse.chains import CHAINS
-from chain_pulse.fetcher import FetchError, Fetcher
+from chain_pulse.fetcher import Fetcher, FetchError
 
 
 def test_gas_price_gwei(monkeypatch):

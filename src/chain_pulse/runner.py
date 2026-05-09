@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from .chains import Chain
-from .fetcher import Balance, FetchError, Fetcher, TokenBalance
+from .fetcher import Balance, Fetcher, FetchError, TokenBalance
 from .tokens import for_chain
 
 
