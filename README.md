@@ -1,6 +1,6 @@
 # chain-pulse
 
-Quick multi-chain EVM wallet inspector. Point it at an address, get balances and recent activity across Sepolia, Base, Arbitrum, and Optimism in one shot.
+Quick multi-chain EVM wallet inspector. Point it at an address, get native balances, USDC balances, and current gas prices across Sepolia, Base, Arbitrum, and Optimism in one shot.
 
 Built this because flipping between four block explorers to track testnet wallets got old.
 
@@ -24,11 +24,20 @@ chain-pulse 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
 # Specific chains only
 chain-pulse 0xd8dA... --chains sepolia,base
 
-# Batch mode from file (one address per line)
+# Include curated ERC-20 balances (USDC per chain)
+chain-pulse 0xd8dA... --tokens
+
+# Add current gas prices
+chain-pulse 0xd8dA... --gas
+
+# Live polling mode, refresh every 10s
+chain-pulse 0xd8dA... --watch 10
+
+# Batch mode from file (one address per line, # comments allowed)
 chain-pulse --file wallets.txt
 
 # JSON output for piping
-chain-pulse 0xd8dA... --json
+chain-pulse 0xd8dA... --tokens --gas --json | jq '.chains[] | select(.ok)'
 ```
 
 ## Configuration
@@ -42,7 +51,23 @@ ARBITRUM_RPC=https://arbitrum-one-rpc.publicnode.com
 OPTIMISM_RPC=https://optimism-rpc.publicnode.com
 ```
 
-Public RPCs work out of the box. Bring your own Alchemy/Infura keys for heavier usage.
+Public RPCs work out of the box. Bring your own Alchemy/Infura keys for heavier usage — the public ones rate-limit if you hammer them.
+
+## What it does
+
+- Native balance per chain via `eth_getBalance`
+- ERC-20 balances via `balanceOf` (curated list, USDC per chain by default)
+- Gas price snapshot (gwei) via `eth_gasPrice`
+- Parallel fan-out across chains, ordered output, per-chain failure isolation
+- Decimal math throughout (no float precision drops on dust or large balances)
+
+## Tests
+
+```bash
+pip install -e ".[dev]"
+pytest -q
+ruff check .
+```
 
 ## License
 
