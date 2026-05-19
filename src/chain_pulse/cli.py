@@ -173,3 +173,20 @@ def main(address: str | None, file_: Path | None, chains_csv: str | None,
 
 if __name__ == "__main__":
     main()
+
+
+@click.command(name="chain-pulse-serve")
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8765, show_default=True, type=int)
+@click.option("--reload", is_flag=True, help="Auto-reload on code change (dev only).")
+@click.version_option(__version__, prog_name="chain-pulse-serve")
+def serve(host: str, port: int, reload: bool) -> None:
+    """Run the chain-pulse web dashboard."""
+    import uvicorn
+    uvicorn.run(
+        "chain_pulse.server:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )

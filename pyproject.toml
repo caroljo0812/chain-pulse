@@ -25,6 +25,8 @@ dependencies = [
     "click>=8.1",
     "rich>=13.7",
     "python-dotenv>=1.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -32,10 +34,12 @@ dev = [
     "pytest>=8.0",
     "pytest-mock>=3.12",
     "ruff>=0.4",
+    "httpx>=0.27",
 ]
 
 [project.scripts]
 chain-pulse = "chain_pulse.cli:main"
+chain-pulse-serve = "chain_pulse.cli:serve"
 
 [tool.setuptools.packages.find]
 where = ["src"]

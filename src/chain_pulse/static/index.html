@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>chain-pulse — multi-chain EVM wallet inspector</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161922;
+      --panel-2: #1d2230;
+      --ink: #e7eaf0;
+      --muted: #99a1b3;
+      --accent: #ffd166;
+      --good: #6dd5ad;
+      --bad: #ef6f6c;
+      --warn: #f4a261;
+      --line: #232839;
+      --cyan: #7cd0e8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 1180px; margin: 0 auto; padding: 56px 24px 80px; }
+    header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+    h1 { font-size: 32px; margin: 0; letter-spacing: -0.02em; }
+    h1 .badge { font-size: 12px; padding: 4px 8px; border-radius: 999px;
+      background: var(--panel-2); color: var(--accent); margin-left: 8px;
+      vertical-align: middle; font-weight: 500; }
+    .lede { color: var(--muted); margin: 0 0 32px; max-width: 70ch; }
+
+    .controls { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 10px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 16px; align-items: center; }
+    input[type="text"] {
+      background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+      border-radius: 10px; padding: 11px 14px; font-size: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    label.toggle {
+      display: inline-flex; gap: 8px; align-items: center; color: var(--muted);
+      font-size: 13px; padding: 8px 12px; border-radius: 999px;
+      background: var(--panel-2); border: 1px solid var(--line); cursor: pointer;
+      user-select: none;
+    }
+    label.toggle input { accent-color: var(--accent); }
+    button {
+      background: var(--accent); color: #1c1c1c; border: 0;
+      padding: 11px 20px; border-radius: 999px; font-weight: 600; cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled { opacity: 0.5; cursor: progress; }
+    .status { color: var(--muted); font-size: 13px; margin: 14px 4px 0; min-height: 18px; }
+
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      margin-top: 20px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 18px 20px; }
+    .card .top { display: flex; justify-content: space-between; align-items: baseline;
+      gap: 12px; margin-bottom: 12px; }
+    .card h2 { margin: 0; font-size: 14px; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    .chain-name { color: var(--cyan); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .balance { font-size: 28px; font-weight: 600; letter-spacing: -0.01em; margin: 4px 0 2px;
+      font-variant-numeric: tabular-nums; }
+    .balance .sym { color: var(--muted); font-size: 14px; font-weight: 500; margin-left: 4px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    .meta a { color: var(--muted); text-decoration: none; border-bottom: 1px dashed var(--line); }
+    .meta a:hover { color: var(--accent); }
+
+    .tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px;
+      background: var(--panel-2); border: 1px solid var(--line);
+      font-variant-numeric: tabular-nums; }
+    .pill.usdc { color: var(--good); }
+    .pill.gas { color: var(--accent); }
+    .pill.error { color: var(--bad); }
+
+    .err { color: var(--bad); font-size: 13px; margin-top: 6px; word-break: break-word; }
+
+    .empty { background: var(--panel); border: 1px dashed var(--line); border-radius: 14px;
+      padding: 36px 20px; text-align: center; color: var(--muted); margin-top: 20px; }
+
+    footer { margin-top: 48px; color: var(--muted); font-size: 12px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--accent); }
+
+    @media (max-width: 720px) {
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>chain-pulse <span class="badge">dashboard</span></h1>
+    </header>
+    <p class="lede">
+      Multi-chain EVM wallet inspector. Native balances, ERC-20 holdings, and
+      gas snapshot across Sepolia, Base, Arbitrum, and Optimism — fan out in
+      parallel, ordered output, per-chain failure isolation.
+    </p>
+
+    <div class="controls">
+      <input id="addr" type="text" placeholder="0x... wallet address"
+        value="0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045" spellcheck="false" />
+      <label class="toggle"><input id="tokens" type="checkbox" checked /> tokens</label>
+      <label class="toggle"><input id="gas" type="checkbox" checked /> gas</label>
+      <label class="toggle"><input id="watch" type="checkbox" /> watch&nbsp;30s</label>
+      <button id="run">Refresh</button>
+    </div>
+    <div class="status" id="status">Ready. Default address is vitalik.eth.</div>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>
+      <span>chain-pulse · v<span id="ver">…</span></span>
+      <span><a href="https://github.com/caroljo0812/chain-pulse">github.com/caroljo0812/chain-pulse</a></span>
+    </footer>
+  </main>
+
+  <script>
+  const $ = (id) => document.getElementById(id);
+  const grid = $("grid"), status = $("status");
+  let watchTimer = null;
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function shortAddr(a) {
+    return a.slice(0, 6) + "…" + a.slice(-4);
+  }
+
+  function renderCard(c) {
+    if (!c.ok) {
+      return `
+        <div class="card">
+          <div class="top">
+            <span class="chain-name">${escapeHtml(c.name)}</span>
+            <span class="meta">id ${c.chain_id}</span>
+          </div>
+          <div class="err">${escapeHtml(c.error || "error")}</div>
+        </div>`;
+    }
+    const tokenPills = (c.tokens || []).map(t =>
+      `<span class="pill usdc">${escapeHtml(t.formatted)} ${escapeHtml(t.symbol)}</span>`
+    ).join("");
+    const gasPill = c.gas_gwei
+      ? `<span class="pill gas">${parseFloat(c.gas_gwei).toFixed(3).replace(/\.?0+$/,"")} gwei</span>`
+      : "";
+    const tokenErrs = (c.token_errors || []).map(e =>
+      `<span class="pill error">${escapeHtml(e)}</span>`
+    ).join("");
+    return `
+      <div class="card">
+        <div class="top">
+          <span class="chain-name">${escapeHtml(c.name)}</span>
+          <span class="meta">id ${c.chain_id}</span>
+        </div>
+        <div class="balance">${escapeHtml(c.balance.formatted)}<span class="sym">${escapeHtml(c.balance.symbol)}</span></div>
+        <div class="meta"><a href="${escapeHtml(c.explorer)}" target="_blank" rel="noopener">view on explorer ↗</a></div>
+        <div class="tokens">${tokenPills}${gasPill}${tokenErrs}</div>
+      </div>`;
+  }
+
+  async function scan() {
+    const addr = $("addr").value.trim();
+    if (!addr) { status.textContent = "enter an address"; return; }
+    const params = new URLSearchParams({
+      address: addr,
+      tokens: $("tokens").checked,
+      gas: $("gas").checked,
+    });
+    $("run").disabled = true;
+    status.textContent = "scanning…";
+    try {
+      const r = await fetch("/api/scan?" + params.toString());
+      const data = await r.json();
+      if (!r.ok) {
+        status.textContent = "error: " + (data.error || r.status);
+        grid.innerHTML = "";
+        return;
+      }
+      grid.innerHTML = data.chains.map(renderCard).join("");
+      const okCount = data.chains.filter(c => c.ok).length;
+      status.textContent = `${okCount}/${data.chains.length} chains · ${shortAddr(data.address)} · ${new Date().toLocaleTimeString()}`;
+    } catch (e) {
+      status.textContent = "request failed: " + e.message;
+    } finally {
+      $("run").disabled = false;
+    }
+  }
+
+  function setupWatch() {
+    if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+    if ($("watch").checked) watchTimer = setInterval(scan, 30000);
+  }
+
+  $("run").addEventListener("click", scan);
+  $("addr").addEventListener("keydown", e => { if (e.key === "Enter") scan(); });
+  $("watch").addEventListener("change", setupWatch);
+
+  fetch("/api/health").then(r => r.json()).then(d => $("ver").textContent = d.version);
+  scan();
+  </script>
+</body>
+</html>
