@@ -6,6 +6,8 @@ Built this because flipping between four block explorers to track testnet wallet
 
 Status: early. Works on my machine.
 
+![chain-pulse dashboard](assets/dashboard.png)
+
 ## Install
 
 ```bash
@@ -39,6 +41,22 @@ chain-pulse --file wallets.txt
 # JSON output for piping
 chain-pulse 0xd8dA... --tokens --gas --json | jq '.chains[] | select(.ok)'
 ```
+
+## Dashboard
+
+There's also a small web dashboard with the same data, useful for keeping an eye on a wallet without re-running the CLI:
+
+```bash
+chain-pulse-serve --host 127.0.0.1 --port 8765
+# open http://127.0.0.1:8765
+```
+
+The dashboard is a single page with a stateless FastAPI backend. Endpoints:
+
+- `GET /` — the page
+- `GET /api/scan?address=0x...&tokens=true&gas=true` — scan one address
+- `GET /api/chains` — list configured chains
+- `GET /api/health` — version + status
 
 ## Configuration
 
