@@ -6,6 +6,8 @@ Built this because flipping between four block explorers to track testnet wallet
 
 Status: early. Works on my machine.
 
+**Live demo:** https://chain-pulse-livid.vercel.app
+
 ![chain-pulse dashboard](assets/dashboard.png)
 
 ## Install
